@@ -10,3 +10,11 @@ export async function getCachedTemplates(): Promise<Template[]> {
 export async function setCachedTemplates(templates: Template[]): Promise<void> {
   await storageSet(STORAGE_KEYS.templatesCache, templates)
 }
+
+export async function getActiveTemplateId(): Promise<string | undefined> {
+  return storageGet<string>(STORAGE_KEYS.activeTemplateId)
+}
+
+export async function setActiveTemplateId(templateId: string): Promise<void> {
+  await storageSet(STORAGE_KEYS.activeTemplateId, templateId)
+}

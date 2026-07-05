@@ -12,17 +12,19 @@ use App\Repositories\Contracts\GenerationRepositoryInterface;
 use App\Repositories\Contracts\ProfileRepositoryInterface;
 use App\Repositories\Contracts\TemplateRepositoryInterface;
 use App\Services\Cache\ResponseCacheService;
-use App\Services\Usage\UsageTracker;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
-/** Orchestrates: cache lookup -> prompt build -> provider call -> usage log -> history row. */
+/**
+ * Orchestrates: cache lookup -> prompt build -> provider call -> usage log -> history row.
+ * Usage logging happens inside the queued LogUsageJob (which resolves UsageTracker itself),
+ * not here — this class doesn't need a UsageTracker dependency.
+ */
 class GenerationService
 {
     public function __construct(
         private readonly AIProviderFactory $providerFactory,
         private readonly PromptBuilder $promptBuilder,
         private readonly ResponseCacheService $cache,
-        private readonly UsageTracker $usageTracker,
         private readonly ProfileRepositoryInterface $profiles,
         private readonly TemplateRepositoryInterface $templates,
         private readonly GenerationRepositoryInterface $generations,

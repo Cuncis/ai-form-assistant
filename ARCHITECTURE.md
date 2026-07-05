@@ -65,11 +65,21 @@ Adapters: `LinkedInAdapter`, `GreenhouseAdapter`, `LeverAdapter`, `AshbyAdapter`
 `GenericFormAdapter` (fallback for contact forms / CRMs / anything unrecognized).
 An `AdapterRegistry` picks the best match by URL, falling back to generic.
 
-**Known risk to solve in Phase 6, flagging now:** Workday and some Greenhouse embeds
-render inside cross-origin iframes. `content_scripts` need `all_frames: true` plus
-matching `host_permissions` for those iframe origins, and messaging has to be
-frame-aware (`chrome.tabs.sendMessage(tabId, msg, { frameId })`). This is why
-`detectFields()` is async/observable rather than a one-shot scan.
+**Known risk, still open after Phase 6:** Workday and some Greenhouse embeds render inside
+cross-origin iframes. `content_scripts` need `all_frames: true` (already set) plus matching
+`host_permissions` for those iframe origins, and messaging has to be frame-aware
+(`chrome.tabs.sendMessage(tabId, msg, { frameId })`), which isn't built yet — today's
+`DETECT_FIELDS`/`FILL_FIELD` messaging targets the top frame only. This is why
+`detectFields()` is async/observable rather than a one-shot scan, ready for that later.
+
+**Built in Phase 6 — generic-site injection.** The manifest's `content_scripts.matches` only
+covers the known ATS domains; a generic contact form, WordPress site, or CRM never gets the
+content script auto-injected. Per §7's permission model, those sites work instead via
+`activeTab` + on-demand `chrome.scripting.executeScript`
+(`background/content-script-injector.ts`), triggered only by a genuine user gesture (popup
+button click or keyboard command) — no broad host-permission prompt at install, and Chrome
+enforces the gesture requirement itself (verified live: `executeScript` on an arbitrary origin
+fails outright without one).
 
 ### 2.2 Autofill Pipeline (sequence)
 
