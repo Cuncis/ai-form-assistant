@@ -146,15 +146,22 @@ decides which provider fulfills it (by config, or per-user plan later).
 ```php
 interface AIProviderInterface
 {
-    public function generate(GenerateRequestDTO $request): GenerateResultDTO;
-    public function supportsStructuredOutput(): bool;
+    /** @param GenerateFieldRequestDTO[] $fields */
+    public function generate(array $fields, string $systemPrompt): AIGenerationResultDTO;
+    public function name(): string;
 }
 
-// app/Services/AI/Providers/ClaudeProvider.php   implements AIProviderInterface
-// app/Services/AI/Providers/OpenAIProvider.php   implements AIProviderInterface (stub, Phase 5+)
-// app/Services/AI/Providers/GeminiProvider.php   implements AIProviderInterface (stub, Phase 5+)
+// app/Services/AI/Providers/ClaudeProvider.php   implements AIProviderInterface — real, Phase 5
+// app/Services/AI/Providers/OpenAIProvider.php   implements AIProviderInterface (stub)
+// app/Services/AI/Providers/GeminiProvider.php   implements AIProviderInterface (stub)
 // app/Services/AI/AIProviderFactory.php          resolves the right one from config/ai.php
 ```
+
+Refined during Phase 5 implementation: `$systemPrompt` already has the page context folded in by
+`PromptBuilder`, so the provider only ever needs the field questions and the finished prompt — no
+separate `pageContext` parameter. `generate()` returns an `AIGenerationResultDTO` (the per-field
+`GenerateResultDTO[]` plus the call's real prompt/completion token counts) rather than a bare
+array, so `UsageTracker` logs actual billed tokens instead of an evenly-divided estimate.
 
 Adding a vendor later is: implement the interface, register it in the factory/config — nothing
 else in the request pipeline changes.

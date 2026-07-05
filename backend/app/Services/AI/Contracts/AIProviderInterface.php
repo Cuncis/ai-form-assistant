@@ -2,8 +2,8 @@
 
 namespace App\Services\AI\Contracts;
 
+use App\DTOs\AIGenerationResultDTO;
 use App\DTOs\GenerateFieldRequestDTO;
-use App\DTOs\GenerateResultDTO;
 
 /**
  * One implementation per vendor (Claude, OpenAI, Gemini). Adding a vendor later means
@@ -13,10 +13,12 @@ use App\DTOs\GenerateResultDTO;
 interface AIProviderInterface
 {
     /**
+     * $systemPrompt already has page context folded in by PromptBuilder — the provider
+     * only needs the questions to answer and where to answer them from.
+     *
      * @param  GenerateFieldRequestDTO[]  $fields
-     * @return GenerateResultDTO[]
      */
-    public function generate(array $fields, string $systemPrompt, string $pageContext): array;
+    public function generate(array $fields, string $systemPrompt): AIGenerationResultDTO;
 
     public function name(): string;
 }

@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Services\Usage\UsageTracker;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -19,8 +20,8 @@ class LogUsageJob implements ShouldQueue
         public readonly string $endpoint,
     ) {}
 
-    public function handle(): void
+    public function handle(UsageTracker $usageTracker): void
     {
-        throw new \RuntimeException('Not implemented — Phase 4');
+        $usageTracker->record($this->userId, $this->provider, $this->model, $this->promptTokens, $this->completionTokens, $this->endpoint);
     }
 }

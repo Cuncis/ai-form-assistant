@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\ProfileStoreRequest;
+use App\Http\Requests\Api\V1\ProfileUpdateRequest;
+use App\Http\Resources\Api\V1\ProfileResource;
 use App\Repositories\Contracts\ProfileRepositoryInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,21 +16,40 @@ class ProfileController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        return response()->json(['success' => false, 'error' => 'Not implemented — Phase 4'], 501);
+        $profiles = $this->profiles->allForUser($request->user()->id);
+
+        return response()->json(['success' => true, 'data' => ProfileResource::collection($profiles)]);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(ProfileStoreRequest $request): JsonResponse
     {
-        return response()->json(['success' => false, 'error' => 'Not implemented — Phase 4'], 501);
+        $profile = $this->profiles->create($request->user()->id, $this->toColumns($request->validated()));
+
+        return response()->json(['success' => true, 'data' => new ProfileResource($profile)], 201);
     }
 
-    public function update(Request $request, int $profile): JsonResponse
+    public function update(ProfileUpdateRequest $request, int $profile): JsonResponse
     {
-        return response()->json(['success' => false, 'error' => 'Not implemented — Phase 4'], 501);
+        $updated = $this->profiles->update($request->user()->id, $profile, $this->toColumns($request->validated()));
+
+        return response()->json(['success' => true, 'data' => new ProfileResource($updated)]);
     }
 
     public function destroy(Request $request, int $profile): JsonResponse
     {
-        return response()->json(['success' => false, 'error' => 'Not implemented — Phase 4'], 501);
+        $this->profiles->delete($request->user()->id, $profile);
+
+        return response()->json(['success' => true, 'data' => null]);
+    }
+
+    /** Maps the camelCase request payload onto the profiles table's snake_case columns. */
+    private function toColumns(array $validated): array
+    {
+        if (array_key_exists('isDefault', $validated)) {
+            $validated['is_default'] = $validated['isDefault'];
+            unset($validated['isDefault']);
+        }
+
+        return $validated;
     }
 }

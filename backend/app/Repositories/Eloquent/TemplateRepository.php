@@ -8,28 +8,43 @@ use Illuminate\Support\Collection;
 
 class TemplateRepository implements TemplateRepositoryInterface
 {
+    /** Own templates plus every system template, system ones first. */
     public function allForUser(int $userId): Collection
     {
-        throw new \RuntimeException('Not implemented — Phase 4');
+        return Template::where('user_id', $userId)
+            ->orWhere('is_system', true)
+            ->orderByDesc('is_system')
+            ->orderBy('name')
+            ->get();
     }
 
+    /** Readable if owned by the user or a system template — matches allForUser()'s visibility. */
     public function find(int $userId, int $templateId): ?Template
     {
-        throw new \RuntimeException('Not implemented — Phase 4');
+        return Template::where(fn ($query) => $query->where('user_id', $userId)->orWhere('is_system', true))
+            ->find($templateId);
     }
 
     public function create(int $userId, array $attributes): Template
     {
-        throw new \RuntimeException('Not implemented — Phase 4');
+        $template = new Template($attributes);
+        $template->user_id = $userId;
+        $template->is_system = false;
+        $template->save();
+
+        return $template;
     }
 
     public function update(int $userId, int $templateId, array $attributes): Template
     {
-        throw new \RuntimeException('Not implemented — Phase 4');
+        $template = Template::where('user_id', $userId)->findOrFail($templateId);
+        $template->update($attributes);
+
+        return $template;
     }
 
     public function delete(int $userId, int $templateId): void
     {
-        throw new \RuntimeException('Not implemented — Phase 4');
+        Template::where('user_id', $userId)->findOrFail($templateId)->delete();
     }
 }

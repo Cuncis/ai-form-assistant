@@ -13,6 +13,6 @@ class UsageController extends Controller
 
     public function show(Request $request): JsonResponse
     {
-        return response()->json(['success' => false, 'error' => 'Not implemented — Phase 4'], 501);
+        return response()->json(['success' => true, 'data' => $this->usageTracker->summaryForUser($request->user()->id)]);
     }
 }

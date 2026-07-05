@@ -4,27 +4,37 @@ namespace App\Repositories\Eloquent;
 
 use App\Models\Generation;
 use App\Repositories\Contracts\GenerationRepositoryInterface;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 class GenerationRepository implements GenerationRepositoryInterface
 {
-    public function paginateForUser(int $userId, int $perPage = 25): LengthAwarePaginator
+    public function allForUser(int $userId, int $limit = 100): Collection
     {
-        throw new \RuntimeException('Not implemented — Phase 4');
+        return Generation::where('user_id', $userId)
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get();
     }
 
     public function create(int $userId, array $attributes): Generation
     {
-        throw new \RuntimeException('Not implemented — Phase 4');
+        $generation = new Generation($attributes);
+        $generation->user_id = $userId;
+        $generation->save();
+
+        return $generation;
     }
 
     public function updateStatus(int $userId, int $generationId, string $status): Generation
     {
-        throw new \RuntimeException('Not implemented — Phase 4');
+        $generation = Generation::where('user_id', $userId)->findOrFail($generationId);
+        $generation->update(['status' => $status]);
+
+        return $generation;
     }
 
     public function delete(int $userId, int $generationId): void
     {
-        throw new \RuntimeException('Not implemented — Phase 4');
+        Generation::where('user_id', $userId)->findOrFail($generationId)->delete();
     }
 }
