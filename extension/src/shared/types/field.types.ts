@@ -13,7 +13,9 @@ export type FieldKind =
 
 export type ConfidenceLevel = 'high' | 'medium' | 'low'
 
-export type FieldReviewStatus = 'pending' | 'accepted' | 'edited' | 'rejected'
+/** 'fill-failed': user accepted, but the DOM write itself failed (e.g. a <select> with no
+ * matching option) — distinct from 'pending' so the UI doesn't imply nothing happened. */
+export type FieldReviewStatus = 'pending' | 'accepted' | 'edited' | 'rejected' | 'fill-failed'
 
 export interface FieldOption {
   value: string

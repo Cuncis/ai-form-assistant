@@ -81,24 +81,41 @@ button click or keyboard command) — no broad host-permission prompt at install
 enforces the gesture requirement itself (verified live: `executeScript` on an arbitrary origin
 fails outright without one).
 
+**CRXJS gotcha, found by testing this live:** once the content script started importing React
+(Phase 7's Widget), CRXJS switched it from a plain classic script to a small loader that
+dynamically `import()`s the real bundled chunk. That dynamic import is blocked by Chrome on any
+origin not listed in the manifest's auto-generated `web_accessible_resources.matches` — which
+CRXJS derives from `content_scripts.matches`, i.e. the known ATS list only. This doesn't affect
+those ATS domains, but it's why a raw `executeScript` on a generic site works with no visible
+error yet the script silently fails to actually run — worth remembering if this ever regresses.
+
 ### 2.2 Autofill Pipeline (sequence)
 
-1. User triggers Generate (popup button, floating in-page button, or keyboard shortcut).
-2. Adapter Registry resolves the active `SiteAdapter`; it detects fields + `extractContext()`.
-3. Content script sends `DETECT_RESULT` (fields + context) to the service worker.
-4. Service worker calls backend `POST /v1/generate/batch` with
-   `{ fields[], pageContext, profileId, templateId, language }`.
-5. Backend resolves cache → prompt → provider → **structured output** (see 3.3) → usage log →
+1. User triggers Generate (floating in-page button, keyboard shortcut, or the popup's "Generate
+   answers for this page" button, which just relays the same trigger to the content script).
+2. **Built in Phase 7, refined from the original sketch:** the content script does its own
+   detection and its own backend call — it has direct DOM access, so there's no reason to round
+   -trip through the service worker just to ask itself to detect fields. It calls
+   `adapter.detectFields()` + `adapter.extractContext()` locally, then `generateBatch()` (which
+   still goes through the service worker for the actual `fetch`, preserving the single-egress
+   -point rule — content scripts never call `fetch` directly).
+3. Backend resolves cache → prompt → provider → **structured output** (see 3.3) → usage log →
    history row; returns `{ fieldId, answer, confidence, cached }[]`.
-6. Service worker relays results back to the content script.
-7. Content script renders the **Review Panel** (Shadow DOM overlay, isolated from page CSS):
-   question, generated answer, confidence badge, Edit / Accept / Reject per field.
-8. Only on explicit Accept does the Autofill Engine write the value into the real DOM node,
-   dispatching proper `input`/`change` events (required for React-controlled pages like
-   Workday/Ashby to recognize the change) — submit is never touched.
-9. Service worker reports accepted/edited/rejected outcomes back to the backend so `generations`
-   history reflects what the user actually kept (useful for future prompt tuning, not just what
-   the model produced).
+4. Content script renders the **Review Panel** (Shadow DOM overlay — Tailwind compiled via a
+   `?inline` CSS import and injected as a `<style>` inside the shadow root, so host-page CSS
+   never leaks in and the panel's CSS never leaks out): question, generated answer, confidence
+   badge, editable answer, Accept / Reject per field, plus "accept all high-confidence".
+5. Only on explicit Accept does the Autofill Engine write the value into the real DOM node,
+   dispatching proper `input`/`change` events via the *native property setter* (required for
+   React-controlled pages like Workday/Ashby/LinkedIn's modal — assigning `.value` directly is
+   invisible to React, which tracks its own overridden setter) — submit is never touched. The
+   UI reports the fill's real outcome, not just "user clicked Accept" — a `<select>` whose
+   options don't match the generated value legitimately can't be filled, and the panel says so
+   (`fill-failed` status) rather than falsely claiming success.
+
+**Known gap:** review outcomes (accepted/edited/rejected) aren't reported back to the backend
+yet, so `generations` history always shows `pending`. Deferred — needs the backend to return a
+generation id per field first, and isn't required for the review flow itself to work.
 
 ### 2.3 Extension Folder Structure
 
@@ -304,3 +321,41 @@ GET    /api/v1/settings            PUT /api/v1/settings
 5. **Package manager:** npm (matches the Node/npm versions already on this machine).
 
 Phase 1 approved — proceeding to **Phase 2: Scaffold**.
+
+## 8. Testing (Phase 8)
+
+**Backend** — `php artisan test` (35 tests): auth, Profile/Template CRUD with cross-tenant
+isolation (a second user gets 404, not 403 — doesn't leak existence), system-template
+visibility, history, usage aggregation, and the `Http::fake()`-driven generate/batch suite from
+Phase 5. Factories (`ProfileFactory`, `TemplateFactory::system()`, `GenerationFactory`) exist for
+all three models — needed `user_id` added to each model's `Fillable` list to support them, safe
+because controllers never pass `user_id` from request-derived data regardless of column
+fillability. One real gotcha: testing "logout revokes the token" via two sequential
+`$this->postJson()`/`getJson()` calls in one test method doesn't work — Sanctum's guard caches
+the resolved user for the test process's lifetime, so a second simulated request "succeeds" even
+with a real revocation bug. Assert the token row is gone from the DB instead.
+
+**Extension unit tests** — `npm run test` (Vitest + jsdom, 42 tests) covering pure logic:
+`detector.ts`'s label-resolution heuristics, all 9 adapters' `matches()` routing, request
+building, field/result merging, confidence gating, language detection, and the storage
+wrappers. jsdom needs two polyfills added in `src/test/setup.ts`: `CSS.escape` (unimplemented in
+jsdom) and a non-zero `getBoundingClientRect` (jsdom always reports 0×0, which would make
+`isVisible()` filter out every element).
+
+**Extension E2E** — `npm run test:e2e` (`@playwright/test`, 10 tests): real popup/options
+rendering, and the full detect → generate → review → accept/reject/edit → fill flow against a
+committed local test-fixture form (`e2e/fixtures/test-form.html`) and a lightweight in-repo fake
+backend (`e2e/fixtures/fake-backend.ts`) — no PHP/Redis/Anthropic key needed to run it. Since the
+fixture domain isn't a real ATS, `vite.config.ts` conditionally adds it to
+`content_scripts.matches` only when `E2E_TEST=true` (`npm run build:e2e`), so the content script
+auto-injects there without needing to fight Chrome's `activeTab` gesture-gating in an automated
+test — that mechanism is already verified separately (§2.1). Two non-obvious fixes were needed to
+get this suite to actually pass, not just start:
+- `node:http`'s `Server.close()` waits for existing connections to end before its callback
+  fires; Chrome keeps HTTP/1.1 keep-alive connections open, so naive teardown hangs for the
+  full test timeout on every test after the first. Fix: track sockets via the server's
+  `'connection'` event and `destroy()` them before closing (`e2e/fixtures/close-server.ts`).
+- Playwright's fixture system inspects each fixture function's parameter list as literal source
+  (to know which other fixtures it depends on) — an unused fixture argument must still be an
+  empty destructuring pattern (`async ({}, use) => …`), not a renamed/ignored parameter, or
+  fixture resolution breaks at runtime despite type-checking fine.

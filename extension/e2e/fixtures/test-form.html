@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Generic Contact Form — E2E Fixture</title>
+</head>
+<body>
+  <h1>Contact us</h1>
+  <form>
+    <label for="full-name">Full name</label>
+    <input type="text" id="full-name" name="full_name" />
+
+    <label for="email-field">Work email</label>
+    <input type="email" id="email-field" name="email" />
+
+    <div>Why are you reaching out?</div>
+    <textarea id="reason" name="reason" placeholder="Tell us more..."></textarea>
+
+    <label for="topic-select">Topic</label>
+    <select id="topic-select" name="topic">
+      <option value="">Choose one</option>
+      <option value="sales">Sales</option>
+      <option value="support">Support</option>
+      <option value="partnership">Partnership</option>
+    </select>
+
+    <fieldset>
+      <legend>Preferred contact method</legend>
+      <label><input type="radio" name="contact_method" value="email" /> Email</label>
+      <label><input type="radio" name="contact_method" value="phone" /> Phone</label>
+    </fieldset>
+
+    <label><input type="checkbox" id="subscribe" name="subscribe" /> Subscribe to newsletter</label>
+
+    <button type="submit" id="submit-btn">Send (must NEVER be auto-clicked)</button>
+  </form>
+
+  <script>
+    document.getElementById('submit-btn').addEventListener('click', (e) => {
+      e.preventDefault()
+      document.title = 'SUBMIT WAS CLICKED — THIS WOULD BE A BUG'
+    })
+  </script>
+</body>
+</html>
