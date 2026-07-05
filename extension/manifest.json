@@ -1,0 +1,65 @@
+{
+  "manifest_version": 3,
+  "name": "AI Form Assistant",
+  "version": "0.1.0",
+  "description": "AI-assisted form autofill for job applications, proposals, and business forms. Every answer is reviewed by you before anything is filled in — nothing is ever submitted automatically.",
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_icon": "icons/icon48.png",
+    "default_title": "AI Form Assistant"
+  },
+
+  "background": {
+    "service_worker": "src/background/background.ts",
+    "type": "module"
+  },
+
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.linkedin.com/jobs/*",
+        "https://boards.greenhouse.io/*",
+        "https://job-boards.greenhouse.io/*",
+        "https://jobs.lever.co/*",
+        "https://jobs.ashbyhq.com/*",
+        "https://*.myworkdayjobs.com/*",
+        "https://docs.google.com/forms/*",
+        "https://*.typeform.com/to/*"
+      ],
+      "js": ["src/content/content.ts"],
+      "css": ["src/content/content.css"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+
+  "options_page": "src/options/options.html",
+
+  "permissions": ["storage", "activeTab", "scripting", "contextMenus"],
+
+  "host_permissions": ["https://api.aiformassistant.app/*"],
+
+  "optional_host_permissions": ["https://*/*"],
+
+  "commands": {
+    "generate-answers": {
+      "suggested_key": { "default": "Ctrl+Shift+G", "mac": "Command+Shift+G" },
+      "description": "Detect fields and generate answers on this page"
+    },
+    "fill-accepted": {
+      "suggested_key": { "default": "Ctrl+Shift+F", "mac": "Command+Shift+F" },
+      "description": "Fill all accepted answers into the page"
+    },
+    "open-review-panel": {
+      "suggested_key": { "default": "Ctrl+Shift+R", "mac": "Command+Shift+R" },
+      "description": "Open the review panel for the current page"
+    }
+  }
+}
